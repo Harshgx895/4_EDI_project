@@ -60,9 +60,26 @@ def get_vector_store():
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 MISTRAL_MODEL = "mistral-small-latest"
 
+# Singleton for Mistral LLM (reuse across calls)
+_mistral_llm = None
+
+
+def _get_mistral_llm(temperature=0.1):
+    """Returns a cached Mistral LLM instance."""
+    global _mistral_llm
+    if _mistral_llm is None and MISTRAL_API_KEY:
+        from langchain_community.chat_models import ChatOpenAI
+        _mistral_llm = ChatOpenAI(
+            model=MISTRAL_MODEL,
+            api_key=MISTRAL_API_KEY,
+            base_url="https://api.mistral.ai/v1",
+            temperature=temperature,
+        )
+    return _mistral_llm
+
 
 def get_llm(temperature=0.1):
-    """Returns a configured Gemini LLM instance."""
+    """Returns a configured Gemini LLM instance (used as fallback)."""
     return ChatGoogleGenerativeAI(
         model=MODEL_NAME,
         google_api_key=GOOGLE_API_KEY,
@@ -70,33 +87,9 @@ def get_llm(temperature=0.1):
     )
 
 
-def _call_mistral_fallback(prompt, temperature=0.1):
-    """Fallback: call Mistral API when Gemini is rate-limited."""
-    if not MISTRAL_API_KEY:
-        return "Error: Gemini rate limited and no MISTRAL_API_KEY set for fallback."
-
-    try:
-        from langchain_community.chat_models import ChatOpenAI
-        mistral_llm = ChatOpenAI(
-            model=MISTRAL_MODEL,
-            api_key=MISTRAL_API_KEY,
-            base_url="https://api.mistral.ai/v1",
-            temperature=temperature,
-        )
-        response = mistral_llm.invoke(prompt)
-        return response.content
-    except Exception as e:
-        return f"Mistral fallback error: {str(e)}"
-
-
-def call_llm(prompt, temperature=0.1):
-    """
-    Call the LLM with automatic retry on rate-limit errors.
-    Falls back to Mistral if Gemini is exhausted.
-    Returns the response text string.
-    """
+def _call_gemini_fallback(prompt, temperature=0.1):
+    """Fallback: call Gemini API when Mistral fails."""
     llm = get_llm(temperature=temperature)
-
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             response = llm.invoke(prompt)
@@ -105,14 +98,34 @@ def call_llm(prompt, temperature=0.1):
             error_msg = str(e)
             if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
                 wait_time = RETRY_DELAY * (2 ** (attempt - 1))
-                print(f"  Rate limited (attempt {attempt}/{MAX_RETRIES}). Waiting {wait_time}s...")
+                print(f"  Gemini rate limited (attempt {attempt}/{MAX_RETRIES}). Waiting {wait_time}s...")
                 time.sleep(wait_time)
             else:
-                return f"LLM Error: {error_msg}"
+                return f"Gemini fallback error: {error_msg}"
+    return "Error: All LLM providers exhausted. Please try again later."
 
-    # Fallback to Mistral
-    print("  Gemini exhausted. Falling back to Mistral...")
-    return _call_mistral_fallback(prompt, temperature)
+
+def call_llm(prompt, temperature=0.1):
+    """
+    Call the LLM. Primary: Mistral (fast, no rate limits).
+    Fallback: Gemini (if Mistral fails).
+    Returns the response text string.
+    """
+    # Try Mistral first (fast, generous rate limits)
+    mistral = _get_mistral_llm(temperature)
+    if mistral:
+        try:
+            response = mistral.invoke(prompt)
+            return response.content
+        except Exception as e:
+            error_msg = str(e)
+            if "429" in error_msg or "rate_limit" in error_msg.lower():
+                print("  Mistral rate limited. Falling back to Gemini...")
+            else:
+                print(f"  Mistral error: {error_msg[:80]}. Falling back to Gemini...")
+
+    # Fallback to Gemini
+    return _call_gemini_fallback(prompt, temperature)
 
 
 def build_source_filter(source_filter):
