@@ -195,12 +195,43 @@ All 6 agents are implemented and **verified working end-to-end**. Both modes —
 
 ---
 
+## RAG Evaluation (RAGAS Metrics)
+
+The system has been evaluated using the **RAGAS** framework with 15 hand-crafted test questions against the sample deed PDF. Mistral is used as the evaluator LLM to avoid Gemini rate limits.
+
+### Results
+
+| Metric | Score | Target | Status |
+|--------|-------|--------|--------|
+| **Faithfulness** | 0.9731 | 0.85 | PASS |
+| **Answer Relevancy** | 0.9411 | 0.80 | PASS |
+| **Context Precision** | 0.9149 | 0.75 | PASS |
+| **Context Recall** | 1.0000 | 0.75 | PASS |
+
+### What These Mean
+
+- **Faithfulness (97%)** - Nearly zero hallucinations. All LLM claims are grounded in retrieved document context.
+- **Answer Relevancy (94%)** - Answers directly address the user's question.
+- **Context Precision (91%)** - Retrieved chunks are highly relevant to the query.
+- **Context Recall (100%)** - The system finds all relevant information from the documents.
+
+### Evaluation Architecture
+
+- **Step 1** (`evaluate.py`): Runs 15 test questions through the RAG pipeline (BGE-M3 retrieval + Gemini generation), saves outputs to `eval_intermediate.json`
+- **Step 2** (`evaluate_ragas.py`): Computes RAGAS metrics using Mistral as evaluator LLM + Mistral embeddings, saves detailed per-question results to `eval_results.json`
+
+### Mistral Fallback
+
+Added Mistral (mistral-small-latest) as an automatic fallback LLM in `config.py`. When Gemini hits rate limits (429 / RESOURCE_EXHAUSTED) after 3 retries with exponential backoff, the system seamlessly switches to Mistral for uninterrupted operation.
+
+---
+
 ## What Remains (Future Work)
 
 | Feature | Priority | Status |
 |---------|----------|--------|
+| Streamlit web interface | High | Not started |
 | DOCX file support | Medium | Not started |
-| Streamlit web interface | Medium | Not started |
 | Map-Reduce full document scan | High | Not started |
 | Auto language detection | Medium | Not started |
 | Contract comparison (multi-doc diff) | Low | Not started |

@@ -57,6 +57,9 @@ def get_vector_store():
         )
     return _vector_store
 
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+MISTRAL_MODEL = "mistral-small-latest"
+
 
 def get_llm(temperature=0.1):
     """Returns a configured Gemini LLM instance."""
@@ -67,9 +70,29 @@ def get_llm(temperature=0.1):
     )
 
 
+def _call_mistral_fallback(prompt, temperature=0.1):
+    """Fallback: call Mistral API when Gemini is rate-limited."""
+    if not MISTRAL_API_KEY:
+        return "Error: Gemini rate limited and no MISTRAL_API_KEY set for fallback."
+
+    try:
+        from langchain_community.chat_models import ChatOpenAI
+        mistral_llm = ChatOpenAI(
+            model=MISTRAL_MODEL,
+            api_key=MISTRAL_API_KEY,
+            base_url="https://api.mistral.ai/v1",
+            temperature=temperature,
+        )
+        response = mistral_llm.invoke(prompt)
+        return response.content
+    except Exception as e:
+        return f"Mistral fallback error: {str(e)}"
+
+
 def call_llm(prompt, temperature=0.1):
     """
     Call the LLM with automatic retry on rate-limit errors.
+    Falls back to Mistral if Gemini is exhausted.
     Returns the response text string.
     """
     llm = get_llm(temperature=temperature)
@@ -87,7 +110,9 @@ def call_llm(prompt, temperature=0.1):
             else:
                 return f"LLM Error: {error_msg}"
 
-    return "Error: Rate limited after all retries. Please try again in a few minutes."
+    # Fallback to Mistral
+    print("  Gemini exhausted. Falling back to Mistral...")
+    return _call_mistral_fallback(prompt, temperature)
 
 
 def build_source_filter(source_filter):

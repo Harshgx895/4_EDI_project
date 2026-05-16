@@ -1,0 +1,62 @@
+[
+    {
+        "question": "Can a trustee be removed from the trust?",
+        "ground_truth": "Yes, a Managing Trustee has the power to remove a trustee for misfeasance, misconduct, or physical or mental disability, after conducting an inquiry."
+    },
+    {
+        "question": "What are the tenant's obligations regarding the property condition?",
+        "ground_truth": "The tenant agrees to leave the premises at the end of tenancy in good condition as they are now, subject to reasonable wear and tear. The tenant shall not commit any act of waste in the premises."
+    },
+    {
+        "question": "Can the tenant sublet the building?",
+        "ground_truth": "No, the tenant agrees not to let out the building or a portion of it to anybody else."
+    },
+    {
+        "question": "What does the donor covenant regarding the granted property?",
+        "ground_truth": "The donor covenants that: (a) the donor has good right, full power and absolute authority to grant the said piece of land and premises, and the property is free from charges and encumbrances to the government, municipality, or other local authority."
+    },
+    {
+        "question": "What rights does the purchaser have after the sale?",
+        "ground_truth": "The purchaser shall quietly possess and enjoy the property and receive the rents, income and profits thereof without any lawful interruption or disturbance by the vendor or any persons claiming under him."
+    },
+    {
+        "question": "What is the purpose of document registration?",
+        "ground_truth": "Registration refers to recording the contents of a document with a Registering Officer appointed by the Government. The main purpose is to ensure information about all deals are recorded and maintained, apart from giving the document its authenticity."
+    },
+    {
+        "question": "What are the licensors' representations about the licensed premises?",
+        "ground_truth": "The licensors represent that: (a) they are absolutely entitled to the licensed premises, and (b) they have not created any charge or encumbrance of whatsoever nature on the premises nor have they created any tenancy or leave and licence."
+    },
+    {
+        "question": "How is the trust settlement done?",
+        "ground_truth": "The settlor settles a sum of money in trust, with the name and for the objects stated in the deed, by delivering the said amount in cash to the other party."
+    },
+    {
+        "question": "What are the duties of the Vice President of the trust?",
+        "ground_truth": "The Vice President shall discharge the duties of the Managing Trustee in the absence of the Managing Trustee and shall have the power and authority delegated and assigned by the Managing Trustee."
+    },
+    {
+        "question": "What happens to the original deed of partition?",
+        "ground_truth": "The original deed of partition shall be retained by the first party, and a true copy thereof signed by each party has been delivered to the other party."
+    },
+    {
+        "question": "What power does the attorney have regarding notices to tenants?",
+        "ground_truth": "The attorney has the power to sign and give any notice to any occupier of any property to quit, to repair, to abate any nuisance, to remedy any breach of covenant, or for any other purpose whatsoever."
+    },
+    {
+        "question": "What is the liability of the transferor in case of loss?",
+        "ground_truth": "The transferor shall be liable to make good any loss, jointly as well as severally, which may be sustained by the transferee or its employees on account of the transfer, out of their property both moveable and immoveable."
+    },
+    {
+        "question": "What duties does the Secretary of the trust have?",
+        "ground_truth": "The Secretary shall maintain the records of the trust."
+    },
+    {
+        "question": "What can the attorney do with bills of exchange?",
+        "ground_truth": "The attorney can accept, endorse, discount or otherwise deal with any bills of exchange, bills of lading, delivery orders, promissory notes or other mercantile instruments relating to money, goods, properties or otherwise."
+    },
+    {
+        "question": "What is the attorney's power regarding bank lockers?",
+        "ground_truth": "The attorney has the power to operate any bank locker or safe deposit vault locker."
+    }
+]
