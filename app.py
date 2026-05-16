@@ -244,10 +244,10 @@ with st.sidebar:
 
     # File uploader
     uploaded_files = st.file_uploader(
-        "Upload PDF documents",
-        type=["pdf"],
+        "Upload documents",
+        type=["pdf", "docx"],
         accept_multiple_files=True,
-        help="Upload one or more PDF files for analysis"
+        help="Upload PDF or DOCX files for analysis"
     )
 
     if uploaded_files:

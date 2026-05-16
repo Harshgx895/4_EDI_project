@@ -4,22 +4,83 @@ from langchain_community.document_loaders import PDFPlumberLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
+from langchain_core.documents import Document
 
 # --- Configuration ---
 DB_DIR = "./chroma_db"
 EMBEDDING_MODEL = "BAAI/bge-m3"
+SUPPORTED_EXTENSIONS = (".pdf", ".docx")
+
 
 def load_document(file_path):
-    """Step 1: Extract text from the PDF."""
+    """Extract text from a PDF or DOCX file."""
     print(f"Loading document: {file_path}...")
     
     if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Error: Could not find '{file_path}'. Please add a PDF file to the folder.")
-        
-    loader = PDFPlumberLoader(file_path)
-    documents = loader.load()
+        raise FileNotFoundError(f"Error: Could not find '{file_path}'.")
+
+    ext = os.path.splitext(file_path)[1].lower()
+
+    if ext == ".pdf":
+        loader = PDFPlumberLoader(file_path)
+        documents = loader.load()
+    elif ext == ".docx":
+        documents = _load_docx(file_path)
+    else:
+        raise ValueError(f"Unsupported file type: '{ext}'. Supported: {SUPPORTED_EXTENSIONS}")
     
-    print(f"Successfully loaded {len(documents)} pages.\n")
+    print(f"Successfully loaded {len(documents)} pages/sections.\n")
+    return documents
+
+
+def _load_docx(file_path):
+    """Load a DOCX file into LangChain Document objects."""
+    from docx import Document as DocxDocument
+
+    doc = DocxDocument(file_path)
+    documents = []
+
+    # Group paragraphs into page-like sections (~3000 chars each)
+    current_text = ""
+    page_num = 0
+
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        if not text:
+            continue
+
+        current_text += text + "\n"
+
+        # Create a new "page" every ~3000 characters (similar to a PDF page)
+        if len(current_text) >= 3000:
+            page_num += 1
+            documents.append(Document(
+                page_content=current_text.strip(),
+                metadata={"source": file_path, "page": page_num},
+            ))
+            current_text = ""
+
+    # Don't lose the last section
+    if current_text.strip():
+        page_num += 1
+        documents.append(Document(
+            page_content=current_text.strip(),
+            metadata={"source": file_path, "page": page_num},
+        ))
+
+    # Also extract text from tables
+    for table in doc.tables:
+        table_text = ""
+        for row in table.rows:
+            row_data = [cell.text.strip() for cell in row.cells]
+            table_text += " | ".join(row_data) + "\n"
+        if table_text.strip():
+            page_num += 1
+            documents.append(Document(
+                page_content=table_text.strip(),
+                metadata={"source": file_path, "page": page_num, "type": "table"},
+            ))
+
     return documents
 
 def chunk_document(documents):
@@ -84,20 +145,20 @@ def list_ingested_documents():
     return sorted(sources)
 
 if __name__ == "__main__":
-    # Accept PDF path as a command-line argument or use default
+    # Accept file path as a command-line argument or prompt
     if len(sys.argv) > 1:
-        pdf_path = sys.argv[1]
+        file_path = sys.argv[1]
     else:
-        pdf_path = input("Enter the path to the PDF file: ").strip()
+        file_path = input("Enter the path to the document (PDF or DOCX): ").strip()
 
-    if not pdf_path:
-        print("Error: No PDF path provided.")
+    if not file_path:
+        print("Error: No file path provided.")
         sys.exit(1)
 
     print("=== STARTING INGESTION PROCESS ===")
     
-    # 1. Load PDF
-    docs = load_document(pdf_path)
+    # 1. Load document (PDF or DOCX)
+    docs = load_document(file_path)
     
     # 2. Chunk Text
     chunks = chunk_document(docs)
