@@ -1,0 +1,10 @@
+[server]
+headless = true
+maxUploadSize = 200
+runOnSave = false
+
+[runner]
+fastReruns = true
+
+[browser]
+gatherUsageStats = false
