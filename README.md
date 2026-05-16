@@ -9,21 +9,25 @@ An AI agent-based system that analyzes legal documents of **any size** in **any 
 ## Features
 
 - **Large Document Support** — ingest documents of any size (no token limits)
+- **PDF + DOCX Support** — upload both file formats via CLI or web UI
 - **6 Specialized AI Agents** — modular pipeline for retrieval, clause classification, risk evaluation, and explanation
 - **Hybrid Risk Detection** — LLM analysis + rule-based heuristic flags (unlimited liability, one-sided indemnity, short notice, etc.)
 - **Cross-Lingual Queries** — ask questions in Hindi, English, Hinglish, or 100+ other languages
 - **Dual Mode Interface**:
-  - **Risk Analysis** — structured clause-by-clause risk report
+  - **Risk Analysis** — structured clause-by-clause risk report with color-coded risk cards
   - **Q&A Chat** — conversational document Q&A in any language
+- **Streamlit Web Frontend** — file upload, risk analysis, chat, and evaluation metrics dashboard
 - **Explainable Output** — every finding includes page number, source file, original excerpt, and practical suggestions
+- **Resilient LLM Backend** — Mistral (primary) with Gemini (fallback), automatic failover
+- **RAGAS Evaluation** — all 4 metrics passing (97% faithful, 94% relevant, 91% precise, 100% recall)
 
 ---
 
 ## Architecture
 
 ```
-Document (PDF) → Ingestion Agent → ChromaDB (Vector Store)
-                                        ↓
+Document (PDF/DOCX) → Ingestion Agent → ChromaDB (Vector Store)
+                                             ↓
 Mode 1 (Risk Analysis):
   Query → Retrieval → Clause ID → Risk Eval → Explanation → Report
 
@@ -40,8 +44,22 @@ Mode 2 (Q&A Chat):
 | AI Framework | LangChain |
 | Vector Database | ChromaDB |
 | Embedding Model | BGE-M3 (100+ languages) |
-| LLM | Google Gemini 2.5 Flash |
-| Document Processing | pdfplumber |
+| Primary LLM | Mistral Small (Mistral AI) |
+| Fallback LLM | Google Gemini 2.5 Flash |
+| Document Processing | pdfplumber, python-docx |
+| Frontend | Streamlit |
+| Evaluation | RAGAS |
+
+---
+
+## RAG Evaluation Results
+
+| Metric | Score | Target | Status |
+|--------|-------|--------|--------|
+| **Faithfulness** | 0.9731 | 0.85 | ✅ PASS |
+| **Answer Relevancy** | 0.9411 | 0.80 | ✅ PASS |
+| **Context Precision** | 0.9149 | 0.75 | ✅ PASS |
+| **Context Recall** | 1.0000 | 0.75 | ✅ PASS |
 
 ---
 
@@ -57,22 +75,34 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-### 2. Configure API Key
+### 2. Configure API Keys
 
 Create a `.env` file:
 ```
 GOOGLE_API_KEY=your_google_ai_studio_key_here
+MISTRAL_API_KEY=your_mistral_api_key_here
 ```
 
-Get a free key at [Google AI Studio](https://aistudio.google.com/apikey).
+- Google key: [Google AI Studio](https://aistudio.google.com/apikey)
+- Mistral key: [Mistral AI Console](https://console.mistral.ai/api-keys)
 
 ### 3. Ingest a Document
 
 ```bash
 python ingest.py path/to/your/legal-document.pdf
+# or
+python ingest.py path/to/your/contract.docx
 ```
 
-### 4. Run Analysis
+### 4. Run the Web App
+
+```bash
+streamlit run app.py
+```
+
+Opens at `http://localhost:8501` with file upload, risk analysis, Q&A chat, and evaluation metrics.
+
+### 5. Run CLI Mode (Alternative)
 
 ```bash
 python analyze.py
@@ -87,9 +117,13 @@ Choose your mode:
 ## Project Structure
 
 ```
-├── config.py                     # Shared configuration & utilities
-├── ingest.py                     # Agent 1: Document Ingestion
-├── analyze.py                    # Orchestrator (dual-mode)
+├── .env                          # API keys (GOOGLE_API_KEY, MISTRAL_API_KEY)
+├── config.py                     # Shared config, LLM fallback (Mistral → Gemini)
+├── ingest.py                     # Agent 1: Document Ingestion (PDF + DOCX)
+├── analyze.py                    # CLI Orchestrator (dual-mode)
+├── app.py                        # Streamlit Web Frontend
+├── evaluate.py                   # RAG evaluation pipeline (Step 1)
+├── evaluate_ragas.py             # RAGAS metric computation (Step 2)
 ├── requirements.txt
 ├── agents/
 │   ├── retrieval_agent.py        # Agent 2: Semantic retrieval

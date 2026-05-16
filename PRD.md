@@ -115,8 +115,8 @@ Every finding includes:
 ### Pipeline Flow
 
 ```
-Document (PDF) → Ingestion Agent → ChromaDB (Vector Store)
-                                        ↓
+Document (PDF/DOCX) → Ingestion Agent → ChromaDB (Vector Store)
+                                             ↓
 Mode 1 (Risk Analysis):
   User Query → Retrieval Agent → Clause ID Agent → Risk Eval Agent → Explanation Agent → Report
 
@@ -147,10 +147,12 @@ Agent 6 (Q&A)          → { answer, sources: [{ page, source }] }
 | AI Framework | LangChain |
 | Vector Database | ChromaDB |
 | Embedding Model | BGE-M3 (BAAI/bge-m3) — multilingual, 100+ languages |
-| LLM | Google Gemini 2.5 Flash (via Google AI Studio) |
-| Document Processing | pdfplumber |
+| Primary LLM | Mistral Small (via Mistral AI API) |
+| Fallback LLM | Google Gemini 2.5 Flash (via Google AI Studio) |
+| Document Processing | pdfplumber, python-docx |
+| Frontend | Streamlit |
+| Evaluation | RAGAS (Faithfulness, Relevancy, Precision, Recall) |
 | Environment | python-dotenv |
-| Frontend | Streamlit (planned) |
 
 ---
 
@@ -158,11 +160,15 @@ Agent 6 (Q&A)          → { answer, sources: [{ page, source }] }
 
 ```
 4_EDI_project/
-├── .env                          # API keys
-├── config.py                     # Shared configuration & utilities
-├── ingest.py                     # Agent 1: Document Ingestion
-├── analyze.py                    # Orchestrator: dual-mode (Risk Analysis / Q&A Chat)
+├── .env                          # API keys (GOOGLE_API_KEY, MISTRAL_API_KEY)
+├── config.py                     # Shared config, LLM fallback (Mistral → Gemini)
+├── ingest.py                     # Agent 1: Document Ingestion (PDF + DOCX)
+├── analyze.py                    # CLI Orchestrator: dual-mode
+├── app.py                        # Streamlit Web Frontend
+├── evaluate.py                   # RAG evaluation pipeline (Step 1)
+├── evaluate_ragas.py             # RAGAS metric computation (Step 2)
 ├── requirements.txt              # Python dependencies
+├── .streamlit/config.toml        # Streamlit configuration
 ├── agents/
 │   ├── __init__.py
 │   ├── retrieval_agent.py        # Agent 2: Semantic retrieval
@@ -178,7 +184,7 @@ Agent 6 (Q&A)          → { answer, sources: [{ page, source }] }
 
 ## 9. Functional Requirements
 
-- Upload legal documents in **PDF** format
+- Upload legal documents in **PDF or DOCX** format
 - Extract text and split into semantic chunks
 - Generate multilingual embeddings and store in vector database
 - Retrieve relevant chunks using semantic similarity search
@@ -190,6 +196,8 @@ Agent 6 (Q&A)          → { answer, sources: [{ page, source }] }
 - **Conversational Q&A** mode for free-form document questioning
 - **Dual-mode interface**: structured risk analysis or conversational Q&A
 - Q&A responses in the **user's query language** (auto-detected)
+- **Streamlit web interface** with file upload, risk cards, chat, and eval metrics
+- **Automatic LLM failover** (Mistral → Gemini)
 
 ---
 
@@ -219,7 +227,7 @@ Agent 6 (Q&A)          → { answer, sources: [{ page, source }] }
 - Incorrect interpretation of complex or ambiguous legal language
 - LLM hallucination risks (mitigated by source references)
 - Variation in legal standards across jurisdictions
-- Currently supports PDF only (DOCX planned)
+- Complex or ambiguous legal language may be misinterpreted
 
 ---
 
@@ -231,9 +239,9 @@ Agent 6 (Q&A)          → { answer, sources: [{ page, source }] }
 
 ## 14. Future Enhancements
 
-- **DOCX support** via python-docx
+- ~~**DOCX support** via python-docx~~ ✅ Implemented
+- ~~**Streamlit web interface**~~ ✅ Implemented
 - **Scanned PDF OCR** via pytesseract
-- **Streamlit web interface** for file upload and interactive analysis
 - **Map-Reduce full document scan** — analyze ALL chunks for a complete risk report
 - **Contract comparison** across multiple documents
 - **Auto language detection** with explicit response-language control

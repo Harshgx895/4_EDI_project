@@ -6,9 +6,9 @@ This document tracks the development progress of the **AI Agent–Based Legal Do
 
 ---
 
-## Current Status: All Agents Implemented & Tested ✅
+## Current Status: Full System Live ✅
 
-All 6 agents are implemented and **verified working end-to-end**. Both modes — Risk Analysis and Q&A Chat — have been tested successfully against the sample deed PDF.
+All 6 agents are implemented and verified. **Streamlit web frontend** is live. **RAGAS evaluation** passed all metrics. **Mistral** is the primary LLM with **Gemini** as fallback. Both **PDF and DOCX** ingestion are supported.
 
 ---
 
@@ -41,10 +41,12 @@ All 6 agents are implemented and **verified working end-to-end**. Both modes —
 
 **Provides:**
 - `GOOGLE_API_KEY`, `DB_DIR`, `EMBEDDING_MODEL`, `MODEL_NAME` constants
+- `MISTRAL_API_KEY`, `MISTRAL_MODEL` — for primary LLM
 - `get_embedding_function()` — singleton BGE-M3 instance
 - `get_vector_store()` — singleton ChromaDB connection
-- `get_llm()` — creates a Gemini 2.5 Flash instance
-- `call_llm(prompt)` — calls the LLM with automatic retry on rate limits (429 / RESOURCE_EXHAUSTED), exponential backoff
+- `_get_mistral_llm()` — cached Mistral LLM singleton
+- `get_llm()` — creates a Gemini 2.5 Flash instance (fallback)
+- `call_llm(prompt)` — calls Mistral first; on failure falls back to Gemini with retry + exponential backoff
 - `build_source_filter()` — converts document selection into ChromaDB filter syntax (supports single, multiple via `$or`, or all)
 
 ---
@@ -189,9 +191,12 @@ All 6 agents are implemented and **verified working end-to-end**. Both modes —
 |----------|--------|-----------|
 | Embedding Model | BGE-M3 | Multilingual (100+ languages), strong on legal text, supports cross-lingual retrieval |
 | Vector DB | ChromaDB | Lightweight, local, supports metadata filtering, easy to set up |
-| LLM | Gemini 2.5 Flash | Free tier via Google AI Studio, fast, good at structured JSON output |
+| Primary LLM | Mistral Small | Fast responses, generous free-tier rate limits, good JSON output |
+| Fallback LLM | Gemini 2.5 Flash | Free tier via Google AI Studio, automatic failover on Mistral errors |
 | Chunking | RecursiveCharacterTextSplitter (800 chars, 150 overlap) | Preserves paragraph boundaries, overlap prevents cutting clauses |
 | Agent communication | Python dicts | Simple, debuggable, no serialization overhead |
+| Frontend | Streamlit | Fast to build, supports file upload, real-time status updates |
+| Evaluation | RAGAS | Industry-standard RAG metrics (Faithfulness, Relevancy, Precision, Recall) |
 
 ---
 
@@ -220,9 +225,38 @@ The system has been evaluated using the **RAGAS** framework with 15 hand-crafted
 - **Step 1** (`evaluate.py`): Runs 15 test questions through the RAG pipeline (BGE-M3 retrieval + Gemini generation), saves outputs to `eval_intermediate.json`
 - **Step 2** (`evaluate_ragas.py`): Computes RAGAS metrics using Mistral as evaluator LLM + Mistral embeddings, saves detailed per-question results to `eval_results.json`
 
-### Mistral Fallback
+### LLM Strategy
 
-Added Mistral (mistral-small-latest) as an automatic fallback LLM in `config.py`. When Gemini hits rate limits (429 / RESOURCE_EXHAUSTED) after 3 retries with exponential backoff, the system seamlessly switches to Mistral for uninterrupted operation.
+**Primary:** Mistral Small (mistral-small-latest) — fast, generous rate limits on free tier, cached singleton instance.
+**Fallback:** Gemini 2.5 Flash — automatic failover when Mistral errors, with 3 retries + exponential backoff on rate limits.
+
+---
+
+## Streamlit Web Frontend (`app.py`)
+
+A full web interface running at `http://localhost:8501` with:
+
+- **Sidebar:** PDF/DOCX file upload, ingested document listing, document filter
+- **Risk Analysis tab:** Topic input → color-coded risk cards (High/Medium/Low) with explanations, suggestions, source refs
+- **Q&A Chat tab:** Conversational interface with citation display
+- **Evaluation Metrics tab:** RAGAS scores with per-question breakdown
+- **Live progress indicators:** `st.status` showing which agent is running
+- **Cached models:** BGE-M3 loaded once via `@st.cache_resource`
+
+**Usage:**
+```bash
+streamlit run app.py
+```
+
+---
+
+## DOCX Support
+
+`ingest.py` now supports both PDF and DOCX files:
+- Auto-detects file type by extension
+- DOCX paragraphs are grouped into ~3000-char sections (similar to PDF pages)
+- Tables are extracted with pipe-delimited formatting
+- Both CLI (`python ingest.py file.docx`) and web upload supported
 
 ---
 
@@ -230,8 +264,10 @@ Added Mistral (mistral-small-latest) as an automatic fallback LLM in `config.py`
 
 | Feature | Priority | Status |
 |---------|----------|--------|
-| Streamlit web interface | High | Not started |
-| DOCX file support | Medium | Not started |
+| ~~Streamlit web interface~~ | ~~High~~ | ✅ Done |
+| ~~DOCX file support~~ | ~~Medium~~ | ✅ Done |
+| ~~RAGAS evaluation~~ | ~~High~~ | ✅ Done (all 4 metrics passing) |
+| ~~Mistral LLM integration~~ | ~~High~~ | ✅ Done (primary LLM) |
 | Map-Reduce full document scan | High | Not started |
 | Auto language detection | Medium | Not started |
 | Contract comparison (multi-doc diff) | Low | Not started |
