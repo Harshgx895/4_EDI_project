@@ -222,35 +222,44 @@ def _retrieve_chunks(query, source_filter=None):
     return {"query": query, "chunks": chunks}
 
 
-def run_risk_analysis(query, source_filter=None):
+def run_risk_analysis(query, source_filter=None, status=None):
     """Run the full risk analysis pipeline using cached models."""
     from agents.clause_agent import run as identify_clauses
     from agents.risk_agent import run as evaluate_risk
     from agents.explanation_agent import run as explain_risks
 
-    # Use cached vector store for retrieval
+    if status: status.update(label="Retrieving relevant chunks...", state="running")
     retrieval_result = _retrieve_chunks(query, source_filter)
 
     if not retrieval_result.get("chunks"):
         return None
 
+    if status: status.update(label=f"Classifying {len(retrieval_result['chunks'])} clauses...")
     clause_result = identify_clauses(retrieval_result)
+
+    if status: status.update(label="Evaluating risk levels...")
     risk_result = evaluate_risk(clause_result)
+
+    if status: status.update(label="Generating explanations...")
     explanation_result = explain_risks(risk_result)
+
+    if status: status.update(label="Analysis complete!", state="complete")
     return explanation_result
 
 
-def run_qna(query, source_filter=None):
+def run_qna(query, source_filter=None, status=None):
     """Run Q&A query using cached models."""
     from agents.qna_agent import run as answer_question
 
-    # Use cached vector store for retrieval
+    if status: status.update(label="Searching documents...", state="running")
     retrieval_result = _retrieve_chunks(query, source_filter)
 
     if not retrieval_result.get("chunks"):
         return {"answer": "No relevant information found in the documents.", "sources": []}
 
+    if status: status.update(label="Generating answer...")
     result = answer_question(query, retrieval_result["chunks"])
+    if status: status.update(label="Done!", state="complete")
     return result
 
 
@@ -355,8 +364,8 @@ else:
 
         if st.button("Analyze", type="primary", key="analyze_btn"):
             if query:
-                with st.spinner("Running analysis pipeline..."):
-                    result = run_risk_analysis(query, st.session_state.selected_docs)
+                with st.status("Starting analysis...", expanded=True) as status:
+                    result = run_risk_analysis(query, st.session_state.selected_docs, status=status)
 
                 if result and result.get("report"):
                     report = result["report"]
@@ -427,8 +436,8 @@ else:
         if user_query:
             st.session_state.chat_history.append({"role": "user", "content": user_query})
 
-            with st.spinner("Searching documents..."):
-                result = run_qna(user_query, st.session_state.selected_docs)
+            with st.status("Searching documents...", expanded=False) as status:
+                result = run_qna(user_query, st.session_state.selected_docs, status=status)
 
             answer = result.get("answer", "Sorry, I couldn't find an answer.")
             sources = result.get("sources", [])
