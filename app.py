@@ -156,9 +156,9 @@ if "initialized" not in st.session_state:
     st.session_state.selected_docs = []
 
 
-@st.cache_resource(show_spinner="Loading AI models...")
+@st.cache_resource(show_spinner="Loading AI models... (first time takes ~30s)")
 def load_models():
-    """Load embedding model and vector store once (only called when needed)."""
+    """Load embedding model and vector store ONCE. Cached across all reruns."""
     from config import get_embedding_function, get_vector_store
     ef = get_embedding_function()
     vs = get_vector_store()
@@ -188,44 +188,64 @@ def get_ingested_documents():
 
 
 def ingest_document(file_path):
-    """Ingest a PDF into ChromaDB."""
+    """Ingest a PDF/DOCX into ChromaDB."""
     from ingest import load_document, chunk_document, create_vector_db
     docs = load_document(file_path)
     chunks = chunk_document(docs)
     create_vector_db(chunks)
+    # Clear model cache so vector store picks up new documents
+    load_models.clear()
+
+
+def _retrieve_chunks(query, source_filter=None):
+    """Retrieve chunks using the CACHED vector store (no model reload)."""
+    from config import build_source_filter
+
+    _, vs = load_models()
+    if vs is None:
+        return {"query": query, "chunks": []}
+
+    chroma_filter = build_source_filter(source_filter)
+    results_with_scores = vs.similarity_search_with_relevance_scores(
+        query, k=5, filter=chroma_filter
+    )
+
+    chunks = []
+    for doc, score in results_with_scores:
+        chunks.append({
+            "text": doc.page_content,
+            "page": doc.metadata.get("page", 0) + 1,
+            "source": doc.metadata.get("source", "unknown"),
+            "similarity_score": round(score, 4),
+        })
+
+    return {"query": query, "chunks": chunks}
 
 
 def run_risk_analysis(query, source_filter=None):
-    """Run the full risk analysis pipeline."""
-    from agents.retrieval_agent import run as retrieve
+    """Run the full risk analysis pipeline using cached models."""
     from agents.clause_agent import run as identify_clauses
     from agents.risk_agent import run as evaluate_risk
     from agents.explanation_agent import run as explain_risks
 
-    # Agent 2: Retrieve
-    retrieval_result = retrieve(query, source_filter)
+    # Use cached vector store for retrieval
+    retrieval_result = _retrieve_chunks(query, source_filter)
 
     if not retrieval_result.get("chunks"):
         return None
 
-    # Agent 3: Classify clauses
     clause_result = identify_clauses(retrieval_result)
-
-    # Agent 4: Evaluate risk
     risk_result = evaluate_risk(clause_result)
-
-    # Agent 5: Explain
     explanation_result = explain_risks(risk_result)
-
     return explanation_result
 
 
 def run_qna(query, source_filter=None):
-    """Run Q&A query."""
-    from agents.retrieval_agent import run as retrieve
+    """Run Q&A query using cached models."""
     from agents.qna_agent import run as answer_question
 
-    retrieval_result = retrieve(query, source_filter)
+    # Use cached vector store for retrieval
+    retrieval_result = _retrieve_chunks(query, source_filter)
 
     if not retrieval_result.get("chunks"):
         return {"answer": "No relevant information found in the documents.", "sources": []}
