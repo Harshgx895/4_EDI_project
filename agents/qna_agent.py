@@ -8,11 +8,11 @@ from config import call_llm
 from agents import retrieval_agent
 
 
-def run(query, chunks):
+def run(query, chunks, chat_history=None):
     """
     Answer a user question using retrieved document chunks.
 
-    Input:  query (str), chunks (list of chunk dicts from retrieval_agent)
+    Input:  query (str), chunks (list of chunk dicts), chat_history (optional list of {role, content})
     Output: dict { answer, sources: [{ page, source }] }
     """
     print("\n===== AGENT: Q&A =====")
@@ -32,6 +32,17 @@ def run(query, chunks):
         context_block += "\n"
         sources.append({"page": chunk["page"], "source": chunk["source"]})
 
+    # Build conversation history block (last 6 turns max)
+    history_block = ""
+    if chat_history and len(chat_history) > 0:
+        recent = chat_history[-6:]  # last 6 messages for context
+        history_block = "\nCONVERSATION HISTORY (use this to understand context and references like 'this', 'that', etc.):\n"
+        for msg in recent:
+            role = "User" if msg.get("role") == "user" else "Assistant"
+            content = msg.get("content", "")[:300]  # truncate to save tokens
+            history_block += f"{role}: {content}\n"
+        history_block += "\n"
+
     prompt = f"""You are a helpful legal document assistant. A user has uploaded legal documents and is asking questions about them.
 
 IMPORTANT RULES:
@@ -43,11 +54,11 @@ IMPORTANT RULES:
 3. Explain legal concepts in simple, easy-to-understand language.
 4. At the end of your answer, cite which source(s) you used (e.g., "Source: Page 14, contract.pdf").
 5. If the context doesn't contain enough information to answer, say so honestly.
+6. If there is conversation history, use it to understand what the user is referring to.
 
 DOCUMENT CONTEXT:
 {context_block}
-
-USER QUESTION: {query}
+{history_block}USER QUESTION: {query}
 
 Respond naturally and helpfully:"""
 

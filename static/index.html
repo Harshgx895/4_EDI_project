@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LegalLens — AI Legal Document Reviewer</title>
+    <meta name="description" content="AI-powered legal document analysis. Analyze contracts of any size in any language with multi-agent risk detection.">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9878;</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Markdown renderer for chat output -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SIDEBAR
+     ═══════════════════════════════════════════════════════════════════ -->
+<aside class="sidebar">
+    <div class="sidebar-brand">
+        <h1>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+            LegalLens
+        </h1>
+        <p>AI Document Analysis</p>
+    </div>
+
+    <nav class="sidebar-nav">
+        <div class="nav-label">Analysis</div>
+        <div class="nav-item active" data-view="risk" id="nav-risk">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            Risk Analysis
+        </div>
+        <div class="nav-item" data-view="chat" id="nav-chat">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Q&A Chat
+        </div>
+        <div class="nav-item" data-view="eval" id="nav-eval">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+            Evaluation
+        </div>
+    </nav>
+
+    <div class="sidebar-docs" id="sidebar-docs">
+        <div class="nav-label">Documents</div>
+        <div id="doc-list"></div>
+        <div class="upload-zone" id="upload-zone">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+            <div>Upload PDF or DOCX</div>
+            <p>Drag and drop or click</p>
+        </div>
+        <input type="file" class="upload-input" id="upload-input" accept=".pdf,.docx" multiple>
+    </div>
+</aside>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     MAIN CONTENT
+     ═══════════════════════════════════════════════════════════════════ -->
+<main class="main">
+
+    <!-- ── Header ── -->
+    <header class="main-header">
+        <div>
+            <div class="main-title" id="view-title">Risk Analysis</div>
+            <div class="main-subtitle" id="view-subtitle">Identify risky clauses in your legal documents</div>
+        </div>
+        <div class="header-actions" id="header-actions"></div>
+    </header>
+
+    <!-- ── Content Area ── -->
+    <div class="main-content" id="main-content">
+
+        <!-- VIEW: Welcome (no docs) -->
+        <div id="view-welcome" class="welcome hidden">
+            <div class="welcome-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+            </div>
+            <h2>Welcome to LegalLens</h2>
+            <p>Upload a legal document to begin analyzing contracts, agreements, and policies with AI-powered risk detection.</p>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="fc-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <h4>Any Document</h4>
+                    <p>Upload PDFs or DOCX files of any size. Supports 100+ languages.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="fc-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                    </div>
+                    <h4>Risk Detection</h4>
+                    <p>AI + rule-based analysis identifies liability, termination, and indemnity risks.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="fc-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <h4>Ask Questions</h4>
+                    <p>Chat with your documents in natural language. Get cited answers.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: Risk Analysis -->
+        <div id="view-risk" class="hidden">
+            <div class="search-bar">
+                <input type="text" class="search-input" id="risk-input" placeholder="Search for a topic — e.g. liability, termination, indemnification">
+                <button class="btn-primary" id="risk-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    Analyze
+                </button>
+                <button class="btn-scan" id="scan-all-btn" title="Scan entire document for all risk types">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Scan All Risks
+                </button>
+            </div>
+            <div id="risk-suggestions" class="suggestions">
+                <div class="suggestions-label">Quick topics</div>
+                <div class="suggestions-chips">
+                    <button class="chip" data-query="liability">Liability</button>
+                    <button class="chip" data-query="termination">Termination</button>
+                    <button class="chip" data-query="indemnification">Indemnification</button>
+                    <button class="chip" data-query="payment terms">Payment Terms</button>
+                    <button class="chip" data-query="confidentiality">Confidentiality</button>
+                    <button class="chip" data-query="non-compete">Non-Compete</button>
+                    <button class="chip" data-query="intellectual property">IP Rights</button>
+                    <button class="chip" data-query="warranty and disclaimer">Warranty</button>
+                </div>
+            </div>
+            <div id="risk-loading" class="hidden"></div>
+            <div id="risk-results"></div>
+        </div>
+
+        <!-- VIEW: Chat -->
+        <div id="view-chat" class="chat-container hidden">
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-empty" id="chat-empty">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <span>Ask anything about your documents</span>
+                    <span style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem;">Supports English, Hindi, Hinglish, and 100+ languages</span>
+                </div>
+            </div>
+            <div class="chat-input-bar">
+                <input type="text" class="chat-input" id="chat-input" placeholder="Ask a question about your documents...">
+                <button class="btn-icon" id="chat-btn" title="Send">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- VIEW: Evaluation -->
+        <div id="view-eval" class="hidden">
+            <div class="eval-header">
+                <p>RAGAS framework evaluation with 15 test questions, scored by Mistral evaluator LLM</p>
+            </div>
+            <div class="eval-grid" id="eval-grid"></div>
+            <div class="section-label">Per-Question Breakdown</div>
+            <div id="eval-questions"></div>
+        </div>
+
+    </div>
+</main>
+
+<!-- PDF Viewer Overlay -->
+<div id="pdf-viewer" class="pdf-viewer-overlay hidden">
+    <div class="pdf-viewer-header">
+        <span id="pdf-viewer-title">Document Preview</span>
+        <button class="btn-secondary" onclick="closePdfViewer()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            Close
+        </button>
+    </div>
+    <iframe id="pdf-viewer-frame" class="pdf-viewer-frame"></iframe>
+</div>
+
+<!-- Disclaimer -->
+<div class="disclaimer">
+    This tool provides AI-assisted analysis for informational purposes only. It does not constitute legal advice. Always consult a qualified attorney.
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

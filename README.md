@@ -1,147 +1,138 @@
-# AI Legal Document Reviewer
+# LegalLens — AI Legal Document Reviewer
 
-> *"Since you can't upload large docs in normal LLMs like ChatGPT, our system helps you analyze large docs in any language."*
-
-An AI agent-based system that analyzes legal documents of **any size** in **any language** using RAG (Retrieval-Augmented Generation) and a multi-agent pipeline.
-
----
+AI-powered legal document analysis platform that combines multi-agent RAG with rule-based heuristics to identify risky clauses, provide actionable recommendations, and answer questions about legal documents in 100+ languages.
 
 ## Features
 
-- **Large Document Support** — ingest documents of any size (no token limits)
-- **PDF + DOCX Support** — upload both file formats via CLI or web UI
-- **6 Specialized AI Agents** — modular pipeline for retrieval, clause classification, risk evaluation, and explanation
-- **Hybrid Risk Detection** — LLM analysis + rule-based heuristic flags (unlimited liability, one-sided indemnity, short notice, etc.)
-- **Cross-Lingual Queries** — ask questions in Hindi, English, Hinglish, or 100+ other languages
-- **Dual Mode Interface**:
-  - **Risk Analysis** — structured clause-by-clause risk report with color-coded risk cards
-  - **Q&A Chat** — conversational document Q&A in any language
-- **Streamlit Web Frontend** — file upload, risk analysis, chat, and evaluation metrics dashboard
-- **Explainable Output** — every finding includes page number, source file, original excerpt, and practical suggestions
-- **Resilient LLM Backend** — Mistral (primary) with Gemini (fallback), automatic failover
-- **RAGAS Evaluation** — all 4 metrics passing (97% faithful, 94% relevant, 91% precise, 100% recall)
-
----
+- **Multi-Agent Risk Analysis** — 4-stage pipeline: Retrieval → Clause Classification → Risk Evaluation → Explanation
+- **Hybrid Detection** — LLM reasoning + regex-based rule checks (unlimited liability, auto-renewal, short notice, etc.)
+- **Conversational Q&A** — Chat with your documents with context-aware follow-up questions
+- **Multilingual Support** — Ask questions and get answers in English, Hindi, Hinglish, and 100+ languages
+- **Document Management** — Upload, filter, preview, and delete PDF/DOCX files
+- **PDF Export** — Download structured risk reports and Q&A session transcripts as PDFs
+- **RAGAS Evaluation** — Built-in pipeline quality metrics (Faithfulness, Relevancy, Precision, Recall)
+- **One-Click Scan** — "Scan All Risks" button for comprehensive document analysis without specifying a topic
 
 ## Architecture
 
 ```
-Document (PDF/DOCX) → Ingestion Agent → ChromaDB (Vector Store)
-                                             ↓
-Mode 1 (Risk Analysis):
-  Query → Retrieval → Clause ID → Risk Eval → Explanation → Report
-
-Mode 2 (Q&A Chat):
-  Query → Retrieval → Q&A Agent → Answer (in user's language)
+┌──────────────────────────────────────────────────────────────────┐
+│                     FastAPI Server (server.py)                   │
+├──────────────┬──────────────┬─────────────────┬─────────────────┤
+│  /api/upload │ /api/analyze │   /api/chat     │   /api/eval     │
+│  /api/docs   │              │  (+ history)    │                 │
+└──────┬───────┴──────┬───────┴────────┬────────┴─────────────────┘
+       │              │                │
+  ┌────▼────┐   ┌─────▼──────────┐  ┌─▼──────────┐
+  │ingest.py│   │ Risk Pipeline  │  │ qna_agent   │
+  │PDFPlumb.│   │ retrieve →     │  │ (with chat  │
+  │BGE-M3   │   │ classify →     │  │  memory)    │
+  │ChromaDB │   │ evaluate →     │  └─────────────┘
+  └─────────┘   │ explain        │
+                └────────────────┘
+                     │
+              ┌──────▼──────┐
+              │  LLM Layer  │
+              │ Mistral(1st)│
+              │ Gemini(2nd) │
+              └─────────────┘
 ```
-
----
 
 ## Tech Stack
 
 | Component | Technology |
 |-----------|-----------|
-| AI Framework | LangChain |
-| Vector Database | ChromaDB |
-| Embedding Model | BGE-M3 (100+ languages) |
-| Primary LLM | Mistral Small (Mistral AI) |
-| Fallback LLM | Google Gemini 2.5 Flash |
-| Document Processing | pdfplumber, python-docx |
-| Frontend | Streamlit |
-| Evaluation | RAGAS |
+| Backend | FastAPI + Uvicorn |
+| Frontend | Vanilla HTML/CSS/JS (dark-mode SPA) |
+| Embeddings | BGE-M3 (HuggingFace, multilingual) |
+| Vector DB | ChromaDB (local, persistent) |
+| LLM | Mistral (primary) → Gemini 2.5 Flash (fallback) |
+| PDF Parsing | PDFPlumber |
+| DOCX Parsing | python-docx |
+| Evaluation | RAGAS framework |
+| PDF Export | html2pdf.js |
+| Markdown Rendering | marked.js |
 
----
+## Quick Start
 
-## RAG Evaluation Results
-
-| Metric | Score | Target | Status |
-|--------|-------|--------|--------|
-| **Faithfulness** | 0.9731 | 0.85 | ✅ PASS |
-| **Answer Relevancy** | 0.9411 | 0.80 | ✅ PASS |
-| **Context Precision** | 0.9149 | 0.75 | ✅ PASS |
-| **Context Recall** | 1.0000 | 0.75 | ✅ PASS |
-
----
-
-## Setup
-
-### 1. Clone & Install
+### 1. Clone and install
 
 ```bash
-git clone https://github.com/Harshgx895/4_EDI_project.git
+git clone https://github.com/your-repo/4_EDI_project.git
 cd 4_EDI_project
 python -m venv venv
-.\venv\Scripts\activate      # Windows
+venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 ```
 
-### 2. Configure API Keys
+### 2. Configure API keys
 
 Create a `.env` file:
-```
-GOOGLE_API_KEY=your_google_ai_studio_key_here
-MISTRAL_API_KEY=your_mistral_api_key_here
+
+```env
+MISTRAL_API_KEY=your_mistral_key
+GOOGLE_API_KEY=your_google_key
 ```
 
-- Google key: [Google AI Studio](https://aistudio.google.com/apikey)
-- Mistral key: [Mistral AI Console](https://console.mistral.ai/api-keys)
-
-### 3. Ingest a Document
+### 3. Ingest a document
 
 ```bash
-python ingest.py path/to/your/legal-document.pdf
-# or
-python ingest.py path/to/your/contract.docx
+python ingest.py path/to/document.pdf
 ```
 
-### 4. Run the Web App
+### 4. Run the server
 
 ```bash
-streamlit run app.py
+python server.py
 ```
 
-Opens at `http://localhost:8501` with file upload, risk analysis, Q&A chat, and evaluation metrics.
-
-### 5. Run CLI Mode (Alternative)
-
-```bash
-python analyze.py
-```
-
-Choose your mode:
-- **[1] Risk Analysis** — structured risk report with clause classification
-- **[2] Q&A Chat** — ask free-form questions in any language
-
----
+Open **http://localhost:8000** in your browser.
 
 ## Project Structure
 
 ```
-├── .env                          # API keys (GOOGLE_API_KEY, MISTRAL_API_KEY)
-├── config.py                     # Shared config, LLM fallback (Mistral → Gemini)
-├── ingest.py                     # Agent 1: Document Ingestion (PDF + DOCX)
-├── analyze.py                    # CLI Orchestrator (dual-mode)
-├── app.py                        # Streamlit Web Frontend
-├── evaluate.py                   # RAG evaluation pipeline (Step 1)
-├── evaluate_ragas.py             # RAGAS metric computation (Step 2)
-├── requirements.txt
+├── server.py              # FastAPI backend — API routes + orchestration
+├── config.py              # Shared config, LLM clients, vector store singletons
+├── ingest.py              # Document loading, chunking, embedding, ChromaDB storage
 ├── agents/
-│   ├── retrieval_agent.py        # Agent 2: Semantic retrieval
-│   ├── clause_agent.py           # Agent 3: Clause classification
-│   ├── risk_agent.py             # Agent 4: Risk evaluation
-│   ├── explanation_agent.py      # Agent 5: Explanation generation
-│   └── qna_agent.py              # Agent 6: Conversational Q&A
+│   ├── retrieval_agent.py # Semantic search over ChromaDB
+│   ├── clause_agent.py    # LLM-based clause type classification
+│   ├── risk_agent.py      # Hybrid LLM + rule-based risk evaluation
+│   ├── explanation_agent.py # Plain-English explanations + recommendations
+│   └── qna_agent.py       # Conversational Q&A with chat memory
+├── static/
+│   ├── index.html         # SPA shell — sidebar, views, overlays
+│   ├── style.css          # Design system — dark mode, animations
+│   └── app.js             # Client-side state, API calls, PDF export
+├── evaluate_ragas.py      # RAGAS evaluation pipeline
+├── eval_dataset.json      # 15 curated test Q&A pairs
+├── eval_results.json      # Latest RAGAS scores
+├── analyze.py             # CLI interface for risk analysis
+├── requirements.txt       # Python dependencies
+└── .gitignore
 ```
 
----
+## Risk Detection Rules
 
-## Documentation
+The system uses both LLM analysis and regex-based rules to flag:
 
-- [PRD.md](PRD.md) — Product Requirements Document
-- [PROGRESS.md](PROGRESS.md) — Development Progress & Walkthrough
+| Rule | Pattern Detected |
+|------|-----------------|
+| Unlimited Liability | "no cap on liability", "without limitation" |
+| One-Sided Indemnity | Sole expense of one party |
+| Auto-Renewal | Automatic renewal without notice |
+| Short Notice Period | Termination notice < 30 days |
+| Broad Non-Compete | Non-compete / non-solicitation clauses |
 
----
+## Evaluation Results
+
+| Metric | Score | Target |
+|--------|-------|--------|
+| Faithfulness | 97% | 85% ✅ |
+| Answer Relevancy | 94% | 80% ✅ |
+| Context Precision | 91% | 75% ✅ |
+| Context Recall | 100% | 75% ✅ |
 
 ## Disclaimer
 
-> This tool is for **informational purposes only** and should not be considered legal advice. Consult qualified legal professionals before making legal decisions.
+This tool provides AI-assisted analysis for informational purposes only. It does not constitute legal advice. Always consult a qualified attorney for legal matters.
